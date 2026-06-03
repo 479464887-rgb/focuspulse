@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>FocusPulse · 设置</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;color:#c9d1d9;background:#0d1117;max-width:500px;margin:40px auto;padding:0 20px}
+h1{font-size:22px;color:#58a6ff;margin-bottom:24px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:20px}
+.card h2{font-size:15px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #30363d}
+.field{margin-bottom:16px}
+.field label{display:block;font-weight:600;margin-bottom:4px;font-size:13px}
+.field .hint{font-size:12px;color:#8b949e;margin-bottom:6px}
+.field input,.field select{width:100%;padding:8px 12px;font-size:13px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#c9d1d9}
+.field input:focus,.field select:focus{outline:none;border-color:#58a6ff}
+.checkbox{display:flex;align-items:center;gap:8px}
+.checkbox input{width:auto}
+.inline{display:flex;gap:12px}
+.inline .field{flex:1}
+.btn{padding:8px 20px;font-size:14px;font-weight:600;border-radius:6px;cursor:pointer;border:none;background:#238636;color:#fff}
+.btn:hover{background:#2ea043}.btn:disabled{opacity:.65}
+#status{margin-left:12px;font-size:13px;color:#3fb950;display:none}
+</style>
+</head>
+<body>
+<h1>🍅 FocusPulse 设置</h1>
+<div class="card"><h2>时长设置</h2>
+<div class="inline">
+  <div class="field"><label>专注 (分钟)</label><input type="number" id="focus-duration" min="1" max="120" value="25"></div>
+  <div class="field"><label>短休息 (分钟)</label><input type="number" id="break-duration" min="1" max="30" value="5"></div>
+</div>
+<div class="inline">
+  <div class="field"><label>长休息 (分钟)</label><input type="number" id="long-break" min="5" max="60" value="15"></div>
+  <div class="field"><label>长休间隔 (番茄数)</label><input type="number" id="sessions-before" min="1" max="10" value="4"></div>
+</div></div>
+<div class="card"><h2>偏好</h2>
+<div class="field checkbox"><input type="checkbox" id="notifications" checked><label>启用通知</label></div>
+<div class="field checkbox"><input type="checkbox" id="auto-start-break"><label>自动开始休息</label></div>
+<div class="field checkbox"><input type="checkbox" id="auto-start-focus"><label>自动开始下一轮专注</label></div></div>
+<div class="card"><button class="btn" id="save">保存设置</button><span id="status"></span></div>
+<script src="options.js"></script>
+</body>
+</html>

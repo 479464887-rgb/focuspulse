@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "FocusPulse",
+  "version": "1.0.0",
+  "description": "极简番茄钟 · 专注计时 + 统计追踪，提升工作效率",
+  "homepage_url": "https://479464887-rgb.github.io/focuspulse/",
+  "author": {"email": "tulv202900@163.com"},
+  "permissions": ["storage", "alarms", "notifications", "commands"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "FocusPulse"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
+      "description": "打开 FocusPulse"
+    }
+  }
+}
