@@ -1,87 +1,41 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FocusPulse</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;color:#c9d1d9;background:#0d1117;width:320px;padding:16px;text-align:center}
-h1{font-size:18px;color:#58a6ff;margin-bottom:16px}
-.timer-ring{position:relative;width:160px;height:160px;margin:0 auto 16px}
-.timer-ring svg{transform:rotate(-90deg)}
-.timer-bg{fill:none;stroke:#21262d;stroke-width:8}
-.timer-progress{fill:none;stroke:#238636;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1s linear}
-.timer-progress.break{stroke:#58a6ff}
-.timer-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
-.timer-time{font-size:36px;font-weight:700;color:#f0f6fc;letter-spacing:1px}
-.timer-label{font-size:11px;color:#8b949e;margin-top:4px}
-.controls{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
-.btn{padding:8px 0;font-size:13px;font-weight:600;border:1px solid #30363d;border-radius:8px;cursor:pointer;background:#21262d;color:#c9d1d9;transition:all 0.15s;min-width:80px}
-.btn:hover{background:#30363d}
-.btn-start{flex:1;background:#238636;border-color:#238636;color:#fff}
-.btn-start:hover{background:#2ea043}
-.btn-start.pause{background:#daa520;border-color:#daa520}
-.btn-break{flex:1;background:#1f6feb;border-color:#1f6feb;color:#fff}
-.btn-break:hover{background:#388bfd}
-.mode-select{display:flex;gap:6px;margin-bottom:16px;justify-content:center}
-.mode-btn{flex:1;padding:6px;font-size:12px;font-weight:600;border:1px solid #30363d;border-radius:6px;background:#161b22;color:#c9d1d9;cursor:pointer}
-.mode-btn.active{border-color:#58a6ff;background:#1a2230}
-.stats{display:flex;gap:8px;margin-bottom:12px}
-.stat-item{flex:1;text-align:center;padding:8px;background:#161b22;border-radius:8px}
-.stat-value{font-size:22px;font-weight:700;color:#58a6ff}
-.stat-label{font-size:10px;color:#8b949e;margin-top:2px}
-.footer{padding-top:8px;border-top:1px solid #21262d;display:flex;justify-content:space-between}
-.footer a{color:#8b949e;text-decoration:none;font-size:11px}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
-.timer-text.running .timer-time{animation:pulse 2s ease infinite}
-</style>
-</head>
-<body>
-<h1>🍅 FocusPulse</h1>
-
-<div class="mode-select" id="mode-select">
-  <button class="mode-btn active" data-mode="focus">🍅 专注</button>
-  <button class="mode-btn" data-mode="break">☕ 短休</button>
-  <button class="mode-btn" data-mode="longBreak">🧘 长休</button>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><style>
+:root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--accent:#58a6ff;--green:#3fb950;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);width:300px;font-family:-apple-system,sans-serif;font-size:13px;text-align:center;}
+.header{background:var(--surface);padding:12px;border-bottom:1px solid var(--border);}
+.header h1{font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px;}
+.timer{padding:24px;position:relative;}
+.time{font-size:56px;font-weight:700;color:#f0f6fc;font-variant-numeric:tabular-nums;}
+.mode{font-size:12px;color:var(--text);margin-top:4px;text-transform:uppercase;letter-spacing:2px;}
+.controls{display:flex;gap:8px;justify-content:center;padding:0 24px 16px;}
+.btn{padding:8px 20px;border-radius:20px;border:none;font-size:13px;cursor:pointer;font-weight:500;}
+.btn-primary{background:#238636;color:#fff;}
+.btn-primary:hover{background:#2ea043;}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border);}
+.btn-secondary:hover{background:#30363d;}
+.stats{display:flex;justify-content:center;gap:24px;padding:12px;border-top:1px solid var(--border);font-size:11px;color:var(--text-secondary);}
+.stat-num{font-size:16px;font-weight:600;color:var(--accent);}
+.settings{padding:12px;border-top:1px solid var(--border);display:flex;gap:12px;justify-content:center;}
+.settings input{width:50px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text);text-align:center;}
+</style></head><body>
+<div class="header"><h1>🍅 FocusPulse</h1></div>
+<div class="timer">
+  <div class="time" id="time">25:00</div>
+  <div class="mode" id="mode">Focus</div>
 </div>
-
-<div class="timer-ring">
-  <svg width="160" height="160" viewBox="0 0 160 160">
-    <circle class="timer-bg" cx="80" cy="80" r="72"/>
-    <circle class="timer-progress" id="progress-ring" cx="80" cy="80" r="72" stroke-dasharray="452.39" stroke-dashoffset="0"/>
-  </svg>
-  <div class="timer-text" id="timer-text">
-    <div class="timer-time" id="time-display">25:00</div>
-    <div class="timer-label" id="mode-label">准备开始</div>
-  </div>
-</div>
-
 <div class="controls">
-  <button class="btn btn-start" id="btn-start">▶ 开始专注</button>
-  <button class="btn" id="btn-stop" style="display:none">⏹ 停止</button>
+  <button class="btn btn-primary" id="start-btn">Start</button>
+  <button class="btn btn-secondary" id="stop-btn">Reset</button>
 </div>
-
 <div class="stats">
-  <div class="stat-item">
-    <div class="stat-value" id="stat-sessions">0</div>
-    <div class="stat-label">今日番茄</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-value" id="stat-minutes">0</div>
-    <div class="stat-label">专注分钟</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-value" id="stat-streak">0</div>
-    <div class="stat-label">连续完成</div>
-  </div>
+  <div><div class="stat-num" id="today-min">0</div>min today</div>
+  <div><div class="stat-num" id="sessions">0</div>sessions</div>
 </div>
-
-<div class="footer">
-  <a href="#" id="btn-settings">⚙️</a>
-  <span style="font-size:11px;color:#8b949e">Ctrl+Shift+F</span>
+<div class="settings">
+  <span style="color:var(--text-secondary);">Focus</span>
+  <input type="number" id="focus-dur" value="25" min="1" max="90">min
+  <span style="color:var(--text-secondary);">Break</span>
+  <input type="number" id="break-dur" value="5" min="1" max="30">min
 </div>
-
 <script src="popup.js"></script>
-</body>
-</html>
+</body></html>

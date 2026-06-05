@@ -1,283 +1,113 @@
-// ExtPay - Payment integration
-importScripts('ExtPay.js');
-const extpay = ExtPay('focuspulse');
-extpay.startBackground();
+// FocusPulse — Background Service Worker
+// Timer state management
 
-// FocusPulse - Background Service Worker
-const DEFAULTS = {
-  focusDuration: 25,     // minutes
-  breakDuration: 5,
-  longBreakDuration: 15,
-  sessionsBeforeLongBreak: 4,
-  autoStartBreaks: false,
-  autoStartFocus: false,
-  soundEnabled: true,
-  notifications: true
+let timerState = {
+  running: false,
+  mode: 'focus', // focus | break
+  remaining: 25 * 60, // seconds
+  total: 25 * 60,
+  endTime: null,
 };
 
-chrome.runtime.onInstalled.addListener(async () => {
-  const { settings } = await chrome.storage.sync.get('settings');
-  if (!settings) await chrome.storage.sync.set({ settings: DEFAULTS });
+const DEFAULT_FOCUS = 25 * 60;
+const DEFAULT_BREAK = 5 * 60;
+const LONG_BREAK = 15 * 60;
 
-  const today = new Date().toDateString();
-  const { dailyStats } = await chrome.storage.local.get('dailyStats');
-  if (!dailyStats || dailyStats.date !== today) {
-    await chrome.storage.local.set({
-      timerState: null,
-      dailyStats: { date: today, sessions: 0, totalMinutes: 0, streak: 0 }
-    });
-  }
-});
-
-// ===== Timer Alarm =====
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'timer-tick') {
-    await handleTimerTick();
-  }
-});
-
-async function handleTimerTick() {
-  const { timerState, dailyStats, settings } = await chrome.storage.local.get(['timerState', 'dailyStats', 'settings']);
-  const s = settings || DEFAULTS;
-  if (!timerState || !timerState.running) return;
-
-  timerState.remaining--;
-  await chrome.storage.local.set({ timerState });
-
-  // Update badge
-  const mins = Math.ceil(timerState.remaining / 60);
-  chrome.action.setBadgeText({ text: mins.toString() });
-  chrome.action.setBadgeBackgroundColor({ color: timerState.mode === 'focus' ? '#238636' : '#58a6ff' });
-
-  if (timerState.remaining <= 0) {
-    await onTimerComplete(timerState, dailyStats, s);
-  }
+function loadSettings() {
+  return chrome.storage.local.get(['focusDuration', 'breakDuration', 'longBreakInterval', 'pro']).then(data => ({
+    focus: (data.focusDuration || 25) * 60,
+    break: (data.breakDuration || 5) * 60,
+    longBreak: 15 * 60,
+    longInterval: data.longBreakInterval || 4,
+    pro: data.pro || false
+  }));
 }
 
-async function onTimerComplete(state, dailyStats, settings) {
-  // Stop alarm
-  await chrome.alarms.clear('timer-tick');
-  state.running = false;
-  state.completed = true;
-
-  if (state.mode === 'focus') {
-    // Record session
-    const today = new Date().toDateString();
-    dailyStats.date = today;
-    dailyStats.sessions = (dailyStats.sessions || 0) + 1;
-    dailyStats.totalMinutes = (dailyStats.totalMinutes || 0) + (settings.focusDuration || 25);
-    dailyStats.streak = (dailyStats.streak || 0) + 1;
-    await chrome.storage.local.set({ dailyStats, timerState: state });
-
-    chrome.action.setBadgeText({ text: '✓' });
-    chrome.action.setBadgeBackgroundColor({ color: '#3fb950' });
-
-    if (settings.notifications !== false) {
-      chrome.notifications.create('focus-done', {
-        type: 'basic',
-        iconUrl: 'icons/icon128.png',
-        title: '🍅 专注完成！',
-        message: `${settings.focusDuration}分钟专注完成。休息一下吧！`,
-        priority: 2
-      });
-    }
-
-    // Auto-start break?
-    if (settings.autoStartBreaks) {
-      const isLongBreak = dailyStats.sessions % (settings.sessionsBeforeLongBreak || 4) === 0;
-      startTimer(isLongBreak ? 'longBreak' : 'break', settings);
-    }
-  } else {
-    await chrome.storage.local.set({ timerState: state });
-    chrome.action.setBadgeText({ text: '☕' });
-
-    if (settings.notifications !== false) {
-      chrome.notifications.create('break-done', {
-        type: 'basic',
-        iconUrl: 'icons/icon128.png',
-        title: '☕ 休息结束',
-        message: '准备好了吗？开始下一轮专注！',
-        priority: 1
-      });
-    }
-
-    if (settings.autoStartFocus) {
-      startTimer('focus', settings);
-    }
-  }
-}
-
-// ===== Start Timer =====
-async function startTimer(mode, settings) {
-  const s = settings || DEFAULTS;
-  const duration = mode === 'focus' ? (s.focusDuration || 25) :
-                   mode === 'longBreak' ? (s.longBreakDuration || 15) :
-                   (s.breakDuration || 5);
-
-  const state = {
-    mode,
-    duration: duration * 60,
-    remaining: duration * 60,
-    running: true,
-    startedAt: Date.now(),
-    completed: false
-  };
-
-  await chrome.storage.local.set({ timerState: state });
-  await chrome.alarms.create('timer-tick', { periodInMinutes: 1 / 60 }); // every second
-
-  const badge = mode === 'focus' ? '▶' : '☕';
-  chrome.action.setBadgeText({ text: Math.ceil(duration).toString() });
-  chrome.action.setBadgeBackgroundColor({ color: mode === 'focus' ? '#238636' : '#58a6ff' });
-
-  return { success: true, state };
-}
-
-// ===== Message Routing =====
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  switch (request.type) {
-    case 'START_TIMER':
-      chrome.storage.sync.get('settings').then(({ settings }) =>
-        startTimer(request.mode || 'focus', settings).then(sendResponse)
-      );
-      return true;
-    case 'PAUSE_TIMER':
-      pauseTimer().then(sendResponse);
-      return true;
-  case 'GET_PAID_STATUS':
-    extpay.getUser().then(sendResponse);
+  if (request.action === 'start') { startTimer(request.mode || 'focus'); sendResponse(timerState); }
+  if (request.action === 'pause') { pauseTimer(); sendResponse(timerState); }
+  if (request.action === 'resume') { resumeTimer(); sendResponse(timerState); }
+  if (request.action === 'stop') { stopTimer(); sendResponse(timerState); }
+  if (request.action === 'status') { sendResponse(timerState); }
+  if (request.action === 'getStats') {
+    chrome.storage.local.get(['sessions', 'totalFocus', 'today'], data => {
+      sendResponse({ sessions: data.sessions || [], totalFocus: data.totalFocus || 0, today: data.today || 0 });
+    });
     return true;
-  case 'OPEN_PAYMENT':
-    extpay.openPaymentPage();
-    sendResponse({ success: true });
-    return false;
-  case 'OPEN_LOGIN':
-    extpay.openLoginPage();
-    sendResponse({ success: true });
-    return false;
-
-    case 'RESUME_TIMER':
-      resumeTimer().then(sendResponse);
-      return true;
-  case 'GET_PAID_STATUS':
-    extpay.getUser().then(sendResponse);
-    return true;
-  case 'OPEN_PAYMENT':
-    extpay.openPaymentPage();
-    sendResponse({ success: true });
-    return false;
-  case 'OPEN_LOGIN':
-    extpay.openLoginPage();
-    sendResponse({ success: true });
-    return false;
-
-    case 'STOP_TIMER':
-      stopTimer().then(sendResponse);
-      return true;
-  case 'GET_PAID_STATUS':
-    extpay.getUser().then(sendResponse);
-    return true;
-  case 'OPEN_PAYMENT':
-    extpay.openPaymentPage();
-    sendResponse({ success: true });
-    return false;
-  case 'OPEN_LOGIN':
-    extpay.openLoginPage();
-    sendResponse({ success: true });
-    return false;
-
-    case 'GET_STATE':
-      getState().then(sendResponse);
-      return true;
-  case 'GET_PAID_STATUS':
-    extpay.getUser().then(sendResponse);
-    return true;
-  case 'OPEN_PAYMENT':
-    extpay.openPaymentPage();
-    sendResponse({ success: true });
-    return false;
-  case 'OPEN_LOGIN':
-    extpay.openLoginPage();
-    sendResponse({ success: true });
-    return false;
-
-    case 'GET_STATS':
-      getStats().then(sendResponse);
-      return true;
-  case 'GET_PAID_STATUS':
-    extpay.getUser().then(sendResponse);
-    return true;
-  case 'OPEN_PAYMENT':
-    extpay.openPaymentPage();
-    sendResponse({ success: true });
-    return false;
-  case 'OPEN_LOGIN':
-    extpay.openLoginPage();
-    sendResponse({ success: true });
-    return false;
-
-    case 'GET_SETTINGS':
-      chrome.storage.sync.get('settings').then(sendResponse);
-      return true;
-  case 'GET_PAID_STATUS':
-    extpay.getUser().then(sendResponse);
-    return true;
-  case 'OPEN_PAYMENT':
-    extpay.openPaymentPage();
-    sendResponse({ success: true });
-    return false;
-  case 'OPEN_LOGIN':
-    extpay.openLoginPage();
-    sendResponse({ success: true });
-    return false;
-
-    case 'SAVE_SETTINGS':
-      chrome.storage.sync.set({ settings: request.settings }).then(() => sendResponse({ success: true }));
-      return true;
   }
 });
 
-async function pauseTimer() {
-  const { timerState } = await chrome.storage.local.get('timerState');
-  if (!timerState || !timerState.running) return { error: 'No active timer' };
-  timerState.running = false;
-  timerState.pausedAt = Date.now();
-  await chrome.storage.local.set({ timerState });
-  await chrome.alarms.clear('timer-tick');
-  chrome.action.setBadgeText({ text: '⏸' });
-  return { success: true, state: timerState };
-}
-
-async function resumeTimer() {
-  const { timerState } = await chrome.storage.local.get('timerState');
-  if (!timerState) return { error: 'No timer' };
+async function startTimer(mode) {
+  const settings = await loadSettings();
+  timerState.mode = mode;
   timerState.running = true;
-  timerState.pausedAt = null;
-  await chrome.storage.local.set({ timerState });
-  await chrome.alarms.create('timer-tick', { periodInMinutes: 1 / 60 });
-  const mins = Math.ceil(timerState.remaining / 60);
-  chrome.action.setBadgeText({ text: mins.toString() });
-  return { success: true, state: timerState };
+  timerState.total = mode === 'focus' ? settings.focus : settings.break;
+  timerState.remaining = timerState.total;
+  timerState.endTime = Date.now() + timerState.total * 1000;
+  startTick();
+  timerState.startedAt = Date.now();
 }
 
-async function stopTimer() {
-  const { timerState, dailyStats } = await chrome.storage.local.get(['timerState', 'dailyStats']);
-  await chrome.alarms.clear('timer-tick');
-  await chrome.storage.local.set({ timerState: null });
-  chrome.action.setBadgeText({ text: '' });
-  return { success: true };
+function pauseTimer() {
+  timerState.running = false;
+  timerState.pausedAt = timerState.remaining;
+  broadcast();
 }
 
-async function getState() {
-  const { timerState, dailyStats } = await chrome.storage.local.get(['timerState', 'dailyStats']);
-  return { state: timerState, stats: dailyStats };
+function resumeTimer() {
+  timerState.running = true;
+  timerState.endTime = Date.now() + timerState.remaining * 1000;
+  startTick();
+  broadcast();
 }
 
-async function getStats() {
-  const { dailyStats = {} } = await chrome.storage.local.get('dailyStats');
-  const today = new Date().toDateString();
-  if (dailyStats.date !== today) {
-    return { sessions: 0, totalMinutes: 0, streak: 0, date: today };
-  }
-  return dailyStats;
+function stopTimer() {
+  timerState.running = false;
+  timerState.remaining = timerState.total;
+  broadcast();
+}
+
+let tickInterval = null;
+function startTick() {
+  if (tickInterval) clearInterval(tickInterval);
+  tickInterval = setInterval(() => {
+    if (!timerState.running) { clearInterval(tickInterval); tickInterval = null; return; }
+    const remaining = Math.max(0, Math.ceil((timerState.endTime - Date.now()) / 1000));
+    timerState.remaining = remaining;
+    broadcast();
+    if (remaining <= 0) {
+      clearInterval(tickInterval); tickInterval = null;
+      timerState.running = false;
+      timerComplete();
+    }
+  }, 1000);
+}
+
+function broadcast() {
+  chrome.runtime.sendMessage({ action: 'timerUpdate', state: timerState }).catch(() => {});
+}
+
+async function timerComplete() {
+  chrome.runtime.sendMessage({ action: 'timerComplete', mode: timerState.mode }).catch(() => {});
+  // Record session
+  const data = await chrome.storage.local.get(['sessions', 'totalFocus', 'today']);
+  const sessions = data.sessions || [];
+  const session = {
+    mode: timerState.mode,
+    duration: timerState.total,
+    completedAt: Date.now(),
+    date: new Date().toISOString().split('T')[0]
+  };
+  sessions.push(session);
+  const totalFocus = (data.totalFocus || 0) + (timerState.mode === 'focus' ? timerState.total : 0);
+  const todayMinutes = session.date === new Date().toISOString().split('T')[0] ? (data.today || 0) + Math.floor(timerState.total / 60) : Math.floor(timerState.total / 60);
+  await chrome.storage.local.set({ sessions: sessions.slice(-100), totalFocus, today: todayMinutes });
+
+  // Notification
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icon128.png',
+    title: timerState.mode === 'focus' ? 'Focus Complete!' : 'Break Over!',
+    message: timerState.mode === 'focus' ? 'Great work! Time for a break.' : 'Ready to focus again?'
+  });
 }
