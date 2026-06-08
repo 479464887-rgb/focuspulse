@@ -1,5 +1,6 @@
 {
   "manifest_version": 3,
+  "minimum_chrome_version": "88",
   "name": "FocusPulse",
   "version": "1.0.0",
   "description": "极简番茄钟 · 专注计时 + 统计追踪，提升工作效率",
