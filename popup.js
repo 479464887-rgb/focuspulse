@@ -1,3 +1,30 @@
+// ==================== ExtPay Integration ====================
+let extpay;
+try {
+  extpay = ExtPay('focuspulse');
+  
+  extpay.getUser().then(user => {
+    if (user && user.paid) {
+      document.body.classList.add('pro-user');
+      const badge = document.querySelector('.pro-badge');
+      if (badge) badge.style.display = 'inline-block';
+    } else {
+      document.body.classList.add('free-user');
+    }
+  }).catch(e => console.error('ExtPay: getUser failed', e));
+  
+  window.openUpgrade = () => {
+    try { extpay.openPaymentPage(); }
+    catch(e) { console.error('ExtPay: payment failed', e); }
+  };
+  window.openLogin = () => {
+    try { extpay.openLoginPage(); }
+    catch(e) { console.error('ExtPay: login failed', e); }
+  };
+} catch(e) {
+  console.error('focuspulse: ExtPay init failed', e);
+}
+
 const timeEl = document.getElementById('time');
 const modeEl = document.getElementById('mode');
 const startBtn = document.getElementById('start-btn');

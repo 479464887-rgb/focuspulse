@@ -1,3 +1,11 @@
+// ExtPay initialization
+try {
+  const extpay = ExtPay('focuspulse');
+  extpay.startBackground();
+} catch(e) {
+  console.error('focuspulse: ExtPay init failed', e);
+}
+
 // FocusPulse — Background Service Worker
 // Timer state management
 
