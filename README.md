@@ -1,27 +1,21 @@
-# FocusPulse
+# Focuspulse — Chrome Extension
 
-Pomodoro timer with deep focus tracking
+Pomodoro timer with focus analytics. Track your productivity patterns.
 
 ## Features
 
-- Works on all websites
-- Dark theme (GitHub Dark style)
-- Keyboard shortcuts support
-- Privacy-focused: data stays local
+- 🔹 ==================== ExtPay Integration ====================
+- 🔹 Listen for updates
 
 ## Pricing
 
-**$9.99 lifetime** — One-time purchase, lifetime access.
-
-## Install
-
-Available on Chrome Web Store (coming soon).
+- **Free**: Basic features with daily limits
+- **Pro**: Subscription via ExtPay — unlock unlimited usage
 
 ## Privacy
 
-This extension does not collect, store, or transmit any personal data.
-See [Privacy Policy](https://479464887-rgb.github.io/focuspulse/privacy.html).
+Local-first processing. No data uploaded to our servers. [Privacy Policy](https://479464887-rgb.github.io/focuspulse/privacy.html)
 
-## License
+## Install
 
-MIT
+1. Clone repo →  → Developer mode → Load unpacked
